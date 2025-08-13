@@ -24,7 +24,13 @@ func main() {
 
 	// Create simulator (10 loci, 100 organisms)
 	// sim := simulator.NewSimulator(10, 100, simulator.DEFAULT_MUTABILITY)
-	sim := simulator.NewSimulator(config.Loci, config.StartingOrganisms, float32(config.Mutability))
+    sim := simulator.NewSimulator(config.Loci, config.StartingOrganisms, float32(config.Mutability))
+    // Apply continuous step size to all continuous loci
+    for _, il := range sim.ImplicitGenome.ImplicitLoci {
+        if il.LocusType == simulator.LOCUS_CONTINUOUS {
+            il.ContinuousChangeMax = float32(config.ContinuousStep)
+        }
+    }
 	sim.NeutralRange = float32(config.NeutralRange)
 
 	if config.DataFile == "" {
@@ -47,7 +53,13 @@ func main() {
 	sim.Log("**** IGENOME ****")
 	sim.Log(sim.ImplicitGenome.String())
 
-	sim.Initialize()
+    sim.Initialize()
+    // Emit a header line noting key CLI flags for reproducibility
+	sim.DataLogOutput(fmt.Sprintf(
+		"Generation,Environment,# Organisms Mutated,B/D Ratio,Fitness,Δfit+ mean,Δfit- mean,Δfit net mean,# ARGS seed=%d loci=%d startorgs=%d maxorgs=%d mutability=%g neutral-range=%g max-fitness=%g quiet=%v\n",
+		config.Seed, config.Loci, config.StartingOrganisms, config.MaxOrganisms,
+		config.Mutability, config.NeutralRange, config.MaxFitness, config.Quiet,
+	))
 
 	// Generate environments at the beginning, so that even
 	// with different options you will get the same environments

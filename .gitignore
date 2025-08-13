@@ -13,3 +13,31 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# Python virtual envs
+.venv/
+venv/
+
+# Python junk
+__pycache__/
+*.pyc
+
+# Data output
+*.png
+*.csv
+data/csv/
+data/png/
+
+# Tools cache
+tools/__pycache__/
+
+# Additional Go build artifacts
+*.test
+*.out
+*.coverprofile
+# Comment out below if you want the binary commit to git
+implicit-genome-simulator-go  
+
+# Editors/OS
+.vscode/
+.DS_Store

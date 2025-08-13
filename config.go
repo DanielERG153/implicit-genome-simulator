@@ -18,6 +18,7 @@ type Config struct {
 	NeutralRange      float64
 	MaxFitness        float64
 	Quiet             bool
+	ContinuousStep    float64
 }
 
 func NewConfig() *Config {
@@ -31,6 +32,7 @@ func NewConfig() *Config {
 		Mutability:        float64(simulator.DEFAULT_MUTABILITY),
 		MaxFitness:        float64(simulator.MAX_FITNESS),
 		NeutralRange:      0.0,
+		ContinuousStep:    0.25, // default matches current code
 	}
 }
 
@@ -46,5 +48,6 @@ func ParseFlags(config *Config) {
 	flag.IntVar(&config.StartingOrganisms, "startorgs", config.StartingOrganisms, "Sets the starting number of organisms for the simulation")
 	flag.Float64Var(&config.Mutability, "mutability", config.Mutability, "The per-locus mutation rate for the organism (0.1 means that each locus will mutate 10% of the time")
 	flag.Float64Var(&config.MaxFitness, "max-fitness", config.MaxFitness, "Set the maximum fitness of a locus")
+	flag.Float64Var(&config.ContinuousStep, "cont-step", config.ContinuousStep, "Max per-mutation step for continuous loci (0..1)")
 	flag.Parse()
 }

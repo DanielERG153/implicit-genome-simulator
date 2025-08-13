@@ -2,13 +2,15 @@ package datalogging
 
 import (
 	"fmt"
-
+	"math"
 	"github.com/johnnyb/implicit-genome-simulator-go/simulator"
 )
 
 var currentTime int = 1
 var beneficialCount int = 0
 var deleteriousCount int = 0
+var posDeltaSum float32 = 0
+var negDeltaSum float32 = 0
 
 var currentEnvironment *simulator.Environment
 
@@ -18,8 +20,12 @@ func DataLogBeneficialMutations(sim *simulator.Simulator, metric simulator.Metri
 	case simulator.ENVIRONMENT_START:
 		currentEnvironment = value.(*simulator.Environment)
 	case simulator.ENVIRONMENT_COMPLETE:
+		// no-op
 	case simulator.SIMULATION_START:
-		sim.DataLogOutput(fmt.Sprintf("Generation,Environment,# Organisms Mutated,B/D Ratio,Fitness,SEED:%d\n", simulator.RandomSeed))
+		// no-op since first row is handled immediately after main.go sim.Initialize() so that it can display all ARGs
+	case simulator.ORGANISM_FITNESS_DIFFERENCE:
+		df := value.(float32)
+		if df > 0 { posDeltaSum += df } else if df < 0 { negDeltaSum += df }
 	case simulator.ORGANISM_MUTATIONS_BENEFICIAL:
 		if value.(bool) {
 			beneficialCount += 1
@@ -27,21 +33,56 @@ func DataLogBeneficialMutations(sim *simulator.Simulator, metric simulator.Metri
 			deleteriousCount += 1
 		}
 	case simulator.ITERATION_COMPLETE:
-		var ftotal float32 = 0
+		// Average fitness (NaN if pop == 0, which is informative in your runs)
+		var ftotal float32
 		for _, o := range sim.Organisms {
 			ftotal += o.FitnessForEnvironment(sim.Environment)
 		}
-		favg := ftotal / float32(len(sim.Organisms))
+		var favg float32
+		if len(sim.Organisms) > 0 {
+			favg = ftotal / float32(len(sim.Organisms))
+		} else {
+			favg = float32(math.NaN())
+		}
+
+		// B/D ratio (guard divide-by-zero)
+		var bd float32
+		if deleteriousCount == 0 {
+			if beneficialCount == 0 {
+				bd = 0 // or NaN if you prefer
+			} else {
+				bd = 1e9 // sentinel for +Inf
+			}
+		} else {
+			bd = float32(beneficialCount) / float32(deleteriousCount)
+		}
+
+		// Effect-size means
+		var posMean, negMean, netMean float32
+		if beneficialCount > 0 { posMean = posDeltaSum / float32(beneficialCount) } else { posMean = float32(math.NaN()) }
+		if deleteriousCount > 0 { negMean = negDeltaSum / float32(deleteriousCount) } else { negMean = float32(math.NaN()) }
+		total := beneficialCount + deleteriousCount
+		if total > 0 { netMean = (posDeltaSum + negDeltaSum) / float32(total) } else { netMean = float32(math.NaN()) }
+
+		// SINGLE format string, arguments in order
 		sim.DataLogOutput(fmt.Sprintf(
-			"%d,%d,%d,%f,%f\n",
+			"%d,%d,%d,%f,%f,%f,%f,%f\n",
 			currentTime,
 			currentEnvironment.EnvironmentId,
 			beneficialCount+deleteriousCount,
-			float32(beneficialCount)/float32(deleteriousCount),
-			favg))
-		currentTime += 1
+			bd,
+			favg,
+			posMean,
+			negMean,
+			netMean,
+		))
+
+		currentTime++
 		beneficialCount = 0
 		deleteriousCount = 0
+		posDeltaSum = 0
+		negDeltaSum = 0
+
 	}
 }
 
