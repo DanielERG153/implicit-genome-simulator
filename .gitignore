@@ -5,39 +5,38 @@
 *.so
 *.dylib
 
-# Test binary, built with `go test -c`
+# Test binaries, coverage, and build artifacts
 *.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+*.coverprofile
 
-# Dependency directories (remove the comment below to include it)
+# Go build output (comment out if you want binaries committed)
+implicit-genome-simulator-go
+evosim
+sweep
+
+# Dependency directories (uncomment to vendor deps)
 # vendor/
 
 # Python virtual envs
 .venv/
 venv/
 
-# Python junk
+# Python cache/junk
 __pycache__/
 *.pyc
+tools/__pycache__/
 
-# Data output
+# Data outputs (large/generated, keep only metadata/readme)
 *.png
 *.csv
 data/csv/
 data/png/
+data/summary.csv
+data/env_edges.csv
+data/runs/
+!data/README.md   # keep a stub/readme tracked
 
-# Tools cache
-tools/__pycache__/
-
-# Additional Go build artifacts
-*.test
-*.out
-*.coverprofile
-# Comment out below if you want the binary commit to git
-implicit-genome-simulator-go  
-
-# Editors/OS
+# Editors / OS
 .vscode/
 .DS_Store

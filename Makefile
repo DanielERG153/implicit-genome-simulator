@@ -14,9 +14,14 @@ RUNS := \
 	$(CSV_DIR)/loci1.csv \
 	$(CSV_DIR)/loci100.csv
 
-.PHONY: all test race clean runs plots summaries ruby-summary
+.PHONY: all test race clean runs plots summaries ruby-summary build
 
 all: test runs plots summaries
+
+# Build a reusable binary once (optional, but faster than go run repeatedly)
+build:
+	mkdir -p bin
+	go build -o bin/evosim ./cmd/evosim
 
 test:
 	go test ./simulator -v -count=1
@@ -29,38 +34,53 @@ clean:
 	rm -f $(CSV_DIR)/*.csv
 	rm -f $(DATA_DIR)/*.csv
 	rm -f $(PNG_DIR)/*.png
+	rm -rf bin
+
+# Use the built binary if present, else fall back to go run
+EVOSIM ?= $(shell [ -x bin/evosim ] && echo bin/evosim || echo "go run ./cmd/evosim")
 
 runs:
 	mkdir -p $(CSV_DIR)
 	# No mutation
-	go run . -envs 1 -iterations 500 -mutability 0 -quiet -datafile $(CSV_DIR)/nomut.csv
+	$(EVOSIM) -envs 1 -iterations 500 -mutability 0 -quiet -datafile $(CSV_DIR)/nomut.csv
 	# All mutate
-	go run . -envs 1 -iterations 500 -mutability 1.0 -quiet -datafile $(CSV_DIR)/allmut.csv
+	$(EVOSIM) -envs 1 -iterations 500 -mutability 1.0 -quiet -datafile $(CSV_DIR)/allmut.csv
 	# Static
-	go run . -envs 1 -iterations 500 -quiet -datafile $(CSV_DIR)/static.csv
+	$(EVOSIM) -envs 1 -iterations 500 -quiet -datafile $(CSV_DIR)/static.csv
 	# Multi environment (5 envs, 100 iters each)
-	go run . -envs 5 -iterations 100 -quiet -datafile $(CSV_DIR)/multi.csv
+	$(EVOSIM) -envs 5 -iterations 100 -quiet -datafile $(CSV_DIR)/multi.csv
 	# High fitness scale
-	go run . -envs 1 -iterations 500 -max-fitness 1000 -quiet -datafile $(CSV_DIR)/highfit.csv
+	$(EVOSIM) -envs 1 -iterations 500 -max-fitness 1000 -quiet -datafile $(CSV_DIR)/highfit.csv
 	# Neutral band
-	go run . -envs 1 -iterations 500 -neutral-range 0.01 -quiet -datafile $(CSV_DIR)/neutral.csv
+	$(EVOSIM) -envs 1 -iterations 500 -neutral-range 0.01 -quiet -datafile $(CSV_DIR)/neutral.csv
 	# Loci sensitivity
-	go run . -loci 1   -startorgs 50 -iterations 300 -quiet -datafile $(CSV_DIR)/loci1.csv
-	go run . -loci 100 -startorgs 50 -iterations 300 -quiet -datafile $(CSV_DIR)/loci100.csv
+	$(EVOSIM) -loci 1   -startorgs 50 -iterations 300 -quiet -datafile $(CSV_DIR)/loci1.csv
+	$(EVOSIM) -loci 100 -startorgs 50 -iterations 300 -quiet -datafile $(CSV_DIR)/loci100.csv
 
 plots:
 	mkdir -p $(PNG_DIR)
 	python3 tools/plot_runs.py
 
-# Summaries for all CSVs using Ruby script
+# Summaries for all CSVs using Ruby script (moved to tools/)
 summaries: $(RUNS)
 	mkdir -p $(DATA_DIR)
 	@for f in $(RUNS); do \
 		base=$$(basename $$f .csv); \
 		echo "Summarizing $$f -> $(DATA_DIR)/$${base}_summary.csv"; \
-		ruby summary.rb $$f $(DATA_DIR)/$${base}_summary.csv || exit 1; \
+		ruby tools/summary.rb $$f $(DATA_DIR)/$${base}_summary.csv || exit 1; \
 	done
 
 # Example single-summary target if you want to run just one
 ruby-summary:
-	ruby summary.rb $(CSV_DIR)/multi.csv $(DATA_DIR)/multi_summary.csv
+	ruby tools/summary.rb $(CSV_DIR)/multi.csv $(DATA_DIR)/multi_summary.csv
+
+.PHONY: batch_sim
+
+# batch_sim: fire off N parallel runs (defaults: N=30, concurrency=$(nproc))
+# Usage: make batch_sim N=30 JOBS=$(nproc) ARGS='--loci 1000 --iterations 1000 --envs 5 --quiet'
+N ?= 30
+JOBS ?= $(shell nproc 2>/dev/null || echo 8)
+ARGS ?= --loci 1000 --iterations 1000 --envs 5 --quiet
+
+batch_sim: build
+	./scripts/batch_sim.sh -j $(JOBS) -n $(N) -- $(ARGS)
