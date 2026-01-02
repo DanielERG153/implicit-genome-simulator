@@ -44,13 +44,20 @@ func NewDataLogPlotter(plotFile string) DataLogger {
 			}
 		case simulator.ITERATION_COMPLETE:
 			time = append(time, currentTime)
-			BDRatio = append(BDRatio, beneficialCount/deleteriousCount)
+			bdRatio := 0.0
+			if deleteriousCount != 0 {
+				bdRatio = beneficialCount / deleteriousCount
+			}
+			BDRatio = append(BDRatio, bdRatio)
 
 			var ftotal float32 = 0
 			for _, o := range sim.Organisms {
 				ftotal += o.FitnessForEnvironment(sim.Environment)
 			}
-			favg := ftotal / float32(len(sim.Organisms))
+			favg := float32(0)
+			if len(sim.Organisms) > 0 {
+				favg = ftotal / float32(len(sim.Organisms))
+			}
 			fitness = append(fitness, float64(favg))
 
 			currentTime += 1
@@ -80,10 +87,11 @@ func NewDataLogPlotter(plotFile string) DataLogger {
 							pts[i].X = time[idx]
 							pts[i].Y = BDRatio[idx]
 						}
-						s, _ := plotter.NewScatter(pts)
-						s.GlyphStyle.Color = color.RGBA{B: 255, A: 255}
-						s.GlyphStyle.Shape = draw.CircleGlyph{}
-						p.Add(s)
+						if s, err := plotter.NewScatter(pts); err == nil {
+							s.GlyphStyle.Color = color.RGBA{B: 255, A: 255}
+							s.GlyphStyle.Shape = draw.CircleGlyph{}
+							p.Add(s)
+						}
 
 					} else {
 						p.Title.Text = "Fitness"
@@ -102,10 +110,11 @@ func NewDataLogPlotter(plotFile string) DataLogger {
 							pts[i].X = time[idx]
 							pts[i].Y = fitness[idx]
 						}
-						s, _ := plotter.NewScatter(pts)
-						s.GlyphStyle.Color = color.RGBA{B: 255, A: 255}
-						s.GlyphStyle.Shape = draw.CircleGlyph{}
-						p.Add(s)
+						if s, err := plotter.NewScatter(pts); err == nil {
+							s.GlyphStyle.Color = color.RGBA{B: 255, A: 255}
+							s.GlyphStyle.Shape = draw.CircleGlyph{}
+							p.Add(s)
+						}
 					}
 
 					p.X.Min = 0
